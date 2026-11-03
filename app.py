@@ -51,25 +51,45 @@ if st.button("Daten neu laden"):
     st.rerun()
 
 
-def show(table, key, search=False):
+def _sort(key, col):
+    if st.session_state.get(f"sort_{key}") == col:
+        st.session_state[f"asc_{key}"] = not st.session_state.get(f"asc_{key}", False)
+    else:
+        st.session_state[f"sort_{key}"] = col
+        st.session_state[f"asc_{key}"] = False
+
+
+def _toggle(k):
+    st.session_state[k] = not st.session_state.get(k, False)
+
+
+def to_md(df):
+    head = "| # | " + " | ".join(df.columns) + " |"
+    sep = "|---:|" + "|".join("---" if c in ("Team", "Name") else "---:" for c in df.columns) + "|"
+    rows = [
+        f"| {i} | " + " | ".join(str(v).replace("|", "/") for v in r) + " |"
+        for i, r in enumerate(df.itertuples(index=False), 1)
+    ]
+    return "\n".join([head, sep, *rows])
+
+
+def show(table, key):
     if table.empty:
         st.info("Keine Daten verfügbar.")
         return
     stat_cols = [c for c in table.columns if c not in ("Team", "Name")]
-    c1, c2, c3 = st.columns(3)
-    sort_by = c1.selectbox("Sortieren nach", stat_cols, key=f"s_{key}")
-    order = c2.radio("Reihenfolge", ["Absteigend", "Aufsteigend"], horizontal=True, key=f"o_{key}")
-    n = c3.selectbox("Zeilen anzeigen", [25, 50, 100, 300], index=1, key=f"n_{key}")
-    if search:
-        q = st.text_input("Suche (Name oder Team)", key=f"q_{key}")
-        if q:
-            mask = table["Name"].str.contains(q, case=False, na=False) | \
-                   table["Team"].astype(str).str.contains(q, case=False, na=False)
-            table = table[mask]
-    table = table.sort_values(sort_by, ascending=(order == "Aufsteigend"))
-    table = table.head(n).reset_index(drop=True)
-    table.index = table.index + 1  # Rang
-    st.table(table)
+    sort_by = st.session_state.get(f"sort_{key}", stat_cols[0])
+    asc = st.session_state.get(f"asc_{key}", False)
+    st.caption("Tippe auf eine Statistik zum Sortieren, nochmal tippen kehrt die Reihenfolge um.")
+    for c, name in zip(st.columns(len(stat_cols)), stat_cols):
+        arrow = (" ▲" if asc else " ▼") if name == sort_by else ""
+        c.button(name + arrow, key=f"b_{key}_{name}", on_click=_sort, args=(key, name))
+    table = table.sort_values(sort_by, ascending=asc)
+    show_all = st.session_state.get(f"all_{key}", False)
+    st.markdown(to_md(table if show_all else table.head(50)))
+    if len(table) > 50:
+        label = "Nur Top 50 anzeigen" if show_all else f"Alle {len(table)} anzeigen"
+        st.button(label, key=f"all_btn_{key}", on_click=_toggle, args=(f"all_{key}",))
 
 
 tabs = st.tabs(["Teams Offense", "Teams Defense", "Quarterbacks", "Wide Receivers", "Running Backs"])
@@ -79,4 +99,4 @@ with tabs[1]:
     show(stats.team_defense(df), "def")
 for tab, (label, (pos, cols)) in zip(tabs[2:], stats.POSITIONS.items()):
     with tab:
-        show(stats.player_table(df, players, pos, cols), pos, search=True)
+        show(stats.player_table(df, players, pos, cols), pos)
