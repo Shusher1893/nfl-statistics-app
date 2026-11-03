@@ -22,6 +22,24 @@ POSITIONS = {
                              "rec_yd": "Rec Yards", "rec_td": "Rec TDs"}),
 }
 
+TEAM_NAMES = {
+    "ARI": "Arizona Cardinals", "ATL": "Atlanta Falcons", "BAL": "Baltimore Ravens",
+    "BUF": "Buffalo Bills", "CAR": "Carolina Panthers", "CHI": "Chicago Bears",
+    "CIN": "Cincinnati Bengals", "CLE": "Cleveland Browns", "DAL": "Dallas Cowboys",
+    "DEN": "Denver Broncos", "DET": "Detroit Lions", "GB": "Green Bay Packers",
+    "HOU": "Houston Texans", "IND": "Indianapolis Colts", "JAX": "Jacksonville Jaguars",
+    "KC": "Kansas City Chiefs", "LAC": "Los Angeles Chargers", "LAR": "Los Angeles Rams",
+    "LV": "Las Vegas Raiders", "MIA": "Miami Dolphins", "MIN": "Minnesota Vikings",
+    "NE": "New England Patriots", "NO": "New Orleans Saints", "NYG": "New York Giants",
+    "NYJ": "New York Jets", "PHI": "Philadelphia Eagles", "PIT": "Pittsburgh Steelers",
+    "SEA": "Seattle Seahawks", "SF": "San Francisco 49ers", "TB": "Tampa Bay Buccaneers",
+    "TEN": "Tennessee Titans", "WAS": "Washington Commanders",
+}
+
+
+def team_name(abbr):
+    return TEAM_NAMES.get(abbr, abbr)
+
 
 def last_completed_week():
     s = requests.get(STATE_URL, timeout=(10, 30)).json()
@@ -78,7 +96,9 @@ def _team_table(df, by, cols, label):
     g = df.dropna(subset=[by]).groupby(by)[list(cols)].sum().astype(int)
     g = g.rename(columns=cols)
     g.index.name = label
-    return g.reset_index()
+    out = g.reset_index()
+    out[label] = out[label].map(team_name)
+    return out
 
 
 def team_offense(df):
@@ -97,6 +117,7 @@ def player_table(df, players, position, cols):
     t = t[["Name"]].join(g, how="inner").join(team)
     t = t[t[list(cols)].sum(axis=1) > 0].rename(columns=cols)
     t[list(cols.values())] = t[list(cols.values())].astype(int)
+    t["Team"] = t["Team"].map(team_name)
     return t[["Name", "Team"] + list(cols.values())].reset_index(drop=True)
 
 
