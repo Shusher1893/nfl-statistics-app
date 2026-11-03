@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 
 import stats
@@ -5,28 +6,44 @@ import stats
 st.set_page_config(page_title="NFL Manager-Stats", page_icon="🏈", layout="wide")
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner="Lade Spielstatistiken …")
-def get_stats():
-    return stats.load_stats()
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_last_week():
+    return stats.last_completed_week()
 
 
-@st.cache_data(ttl=24 * 3600, show_spinner="Lade Spielerliste …")
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def get_week(week):
+    return stats.fetch_week(week)
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
 def get_players():
     return stats.load_players()
 
 
 st.title(f"🏈 NFL Manager-Stats {stats.SEASON}")
 
+bar = st.progress(0, text="Starte …")
 try:
-    df, last_week = get_stats()
+    last_week = get_last_week()
+    frames = []
+    for w in range(1, last_week + 1):
+        bar.progress(w / last_week, text=f"Lade Woche {w} von {last_week} …")
+        f = get_week(w)
+        if not f.empty:
+            frames.append(f)
+    bar.progress(1.0, text="Lade Spielerliste (große Datei, beim ersten Mal etwas Geduld) …")
     players = get_players()
 except Exception as e:
+    bar.empty()
     st.error(f"Daten konnten nicht geladen werden: {e}")
     st.stop()
+bar.empty()
 
-if df.empty:
+if not frames:
     st.info("Noch keine Spieldaten für diese Saison verfügbar.")
     st.stop()
+df = pd.concat(frames, ignore_index=True)
 
 st.caption(f"Stand: bis Woche {last_week} · Quelle: Sleeper API (aktualisiert sich automatisch)")
 if st.button("Daten neu laden"):
