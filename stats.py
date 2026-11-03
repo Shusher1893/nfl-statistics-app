@@ -98,3 +98,23 @@ def player_table(df, players, position, cols):
     t = t[t[list(cols)].sum(axis=1) > 0].rename(columns=cols)
     t[list(cols.values())] = t[list(cols.values())].astype(int)
     return t[["Name", "Team"] + list(cols.values())].reset_index(drop=True)
+
+
+SCHEDULE_URL = "https://api.sleeper.com/schedule/nfl/regular/{season}"  # inoffizieller Endpoint
+
+
+def load_schedule():
+    r = requests.get(SCHEDULE_URL.format(season=SEASON), timeout=(10, 60))
+    r.raise_for_status()
+    rows = []
+    for g in r.json():
+        meta = g.get("metadata") if isinstance(g.get("metadata"), dict) else {}
+        rows.append({"week": g.get("week"), "date": g.get("date"), "away": g.get("away"),
+                     "home": g.get("home"), "status": g.get("status"),
+                     "away_score": meta.get("away_score"), "home_score": meta.get("home_score")})
+    df = pd.DataFrame(rows, columns=["week", "date", "away", "home", "status", "away_score", "home_score"])
+    df = df.dropna(subset=["week", "away", "home"])
+    df["week"] = df["week"].astype(int)
+    for c in ("away_score", "home_score"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
