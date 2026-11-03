@@ -158,12 +158,12 @@ def show_schedule(current):
         if day != last_day:
             lines.append(f"\n**{day}**\n")
             last_day = day
-        lines.append(f"- {g.away} @ {g.home}{_result(g)}")
+        lines.append(f"- {stats.team_name(g.away)} @ {stats.team_name(g.home)}{_result(g)}")
     st.markdown("\n".join(lines))
     all_teams = set(sched["away"]) | set(sched["home"])
     bye = sorted(all_teams - set(games["away"]) - set(games["home"]))
     if bye:
-        st.caption("Spielfrei: " + ", ".join(bye))
+        st.caption("Spielfrei: " + ", ".join(stats.team_name(t) for t in bye))
 
 
 main, side = st.columns([2, 1], gap="large")
