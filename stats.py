@@ -24,7 +24,7 @@ POSITIONS = {
 
 
 def last_completed_week():
-    s = requests.get(STATE_URL, timeout=30).json()
+    s = requests.get(STATE_URL, timeout=(10, 30)).json()
     season = int(s.get("season", SEASON))
     if season > SEASON:
         return MAX_WEEK
@@ -35,7 +35,7 @@ def last_completed_week():
 
 def fetch_week(week):
     r = requests.get(STATS_URL.format(season=SEASON, week=week),
-                     params={"season_type": "regular"}, timeout=60)
+                     params={"season_type": "regular"}, timeout=(10, 90))
     r.raise_for_status()
     rows = r.json()
     if not rows:
@@ -65,7 +65,7 @@ def load_stats():
 
 
 def load_players():
-    data = requests.get(PLAYERS_URL, timeout=120).json()
+    data = requests.get(PLAYERS_URL, timeout=(10, 180)).json()
     rows = []
     for pid, p in data.items():
         if p.get("position") in ("QB", "RB", "WR"):
